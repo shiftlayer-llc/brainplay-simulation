@@ -1,0 +1,204 @@
+# Robot Configuration for Isaac Sim Integration
+# Settings for robot simulation and control in Codenames game
+
+# Isaac Sim Configuration
+isaac_sim:
+  host: "localhost"
+  port: 8211
+  
+  # Connection settings
+  connection_timeout: 10.0
+  heartbeat_interval: 5.0
+  auto_reconnect: true
+  max_reconnect_attempts: 5
+  
+  # Simulation settings
+  physics_dt: 0.016667  # 60 FPS
+  render_dt: 0.016667   # 60 FPS
+  simulation_speed: 1.0
+  
+# Robot Definitions
+robots:
+  spymaster_robot:
+    # Robot model and appearance
+    model: "Franka"  # Franka, UR5e, Kuka, or custom
+    base_position: [2.0, 0.0, 0.0]  # X, Y, Z in meters
+    base_orientation: [0.0, 0.0, 0.0, 1.0]  # Quaternion
+    
+    # Physical properties
+    scale: 1.0
+    color: [0.8, 0.2, 0.2, 1.0]  # Red team color (RGBA)
+    
+    # Animation and movement
+    animations:
+      idle: "idle_pose"
+      thinking: "head_scratch"
+      giving_clue: "point_gesture"
+      celebration: "arms_up"
+      disappointment: "head_down"
+    
+    # Speech and audio
+    voice:
+      enabled: true
+      voice_id: "male_1"
+      speech_rate: 1.0
+      volume: 0.8
+      
+    # Capabilities
+    capabilities:
+      can_point: true
+      can_gesture: true
+      can_speak: true
+      can_move_base: false  # Stationary for this game
+      
+  operative_robot:
+    # Robot model and appearance  
+    model: "Franka"
+    base_position: [-2.0, 0.0, 0.0]
+    base_orientation: [0.0, 0.0, 3.14159, 1.0]  # Facing the board
+    
+    # Physical properties
+    scale: 1.0
+    color: [0.2, 0.2, 0.8, 1.0]  # Blue team color (RGBA)
+    
+    # Animation and movement
+    animations:
+      idle: "idle_pose"
+      thinking: "chin_touch"
+      pointing: "point_gesture"
+      guessing: "reach_gesture"
+      celebration: "fist_pump"
+      disappointment: "face_palm"
+      
+    # Speech and audio
+    voice:
+      enabled: true
+      voice_id: "female_1"
+      speech_rate: 1.1
+      volume: 0.8
+      
+    # Capabilities
+    capabilities:
+      can_point: true
+      can_gesture: true
+      can_speak: true
+      can_move_base: false
+
+# Game Board Setup in Isaac Sim
+game_board:
+  # Board physical properties
+  position: [0.0, 0.0, 0.8]  # Center of the table
+  size: [1.0, 1.0, 0.02]     # Width, Height, Thickness
+  material: "wood_table"
+  
+  # Card layout
+  cards:
+    grid_size: [5, 5]
+    card_size: [0.15, 0.10, 0.005]  # Width, Height, Thickness
+    card_spacing: 0.02  # Gap between cards
+    
+    # Card materials/textures
+    materials:
+      unrevealed: "card_back"
+      red: "red_card" 
+      blue: "blue_card"
+      neutral: "neutral_card"
+      assassin: "black_card"
+      
+    # Card animations
+    animations:
+      reveal: "flip_animation"
+      highlight: "glow_effect"
+      selection: "pulse_effect"
+
+# Environment Setup
+environment:
+  # Lighting
+  lighting:
+    ambient_intensity: 0.3
+    key_light_intensity: 1.0
+    key_light_position: [0.0, 0.0, 3.0]
+    fill_light_intensity: 0.5
+    
+  # Camera settings
+  cameras:
+    overview:
+      position: [0.0, -3.0, 2.5]
+      target: [0.0, 0.0, 0.8]
+      fov: 60.0
+      
+    robot_pov:
+      follow_robot: "spymaster_robot"
+      offset: [0.2, 0.0, 0.3]
+      
+  # Background and scenery
+  background:
+    skybox: "office_environment"
+    ground_plane: true
+    walls: true
+    furniture: ["table", "chairs"]
+
+# Animation and Effects
+animations:
+  # Timing settings
+  gesture_duration: 2.0
+  speech_gesture_sync: true
+  idle_animation_interval: 10.0
+  
+  # Effect settings
+  effects:
+    card_reveal_duration: 1.0
+    highlight_duration: 0.5
+    celebration_duration: 3.0
+    
+# Audio Configuration
+audio:
+  # Background music
+  background_music:
+    enabled: false
+    volume: 0.2
+    playlist: ["ambient_1", "ambient_2"]
+    
+  # Sound effects
+  sound_effects:
+    card_flip: "card_flip.wav"
+    correct_guess: "success_chime.wav" 
+    wrong_guess: "error_buzz.wav"
+    game_start: "game_start.wav"
+    game_end: "game_end.wav"
+    
+  # Speech synthesis
+  tts:
+    engine: "nvidia_riva"  # or "festival", "espeak"
+    sample_rate: 22050
+    bit_depth: 16
+
+# ROS2 Integration
+ros2:
+  # Topic configuration
+  topics:
+    robot_commands: "/isaac/robot_commands"
+    speech_commands: "/isaac/speech_commands" 
+    scene_updates: "/isaac/scene_updates"
+    robot_poses: "/isaac/robot_poses"
+    status: "/isaac/status"
+    
+  # Message frequencies (Hz)
+  frequencies:
+    pose_updates: 30.0
+    status_updates: 1.0
+    heartbeat: 0.2
+    
+# Development and Debug
+debug:
+  show_coordinate_frames: false
+  show_collision_meshes: false
+  show_debug_text: true
+  enable_performance_metrics: true
+  log_robot_states: false
+  
+  # Visualization aids
+  visualization:
+    show_card_indices: true
+    show_robot_target_poses: false
+    show_gaze_directions: true

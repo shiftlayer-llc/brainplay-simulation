@@ -1,0 +1,61 @@
+# Base ROS2 Humble Dockerfile for Codenames Game
+FROM osrf/ros:humble-desktop
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DOMAIN_ID=42
+ENV PYTHONUNBUFFERED=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    curl \
+    git \
+    nano \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for LLM APIs
+RUN pip3 install \
+    openai \
+    anthropic \
+    requests \
+    numpy \
+    flask \
+    flask-cors \
+    flask-socketio \
+    python-socketio \
+    eventlet \
+    aiohttp
+
+# Create workspace
+WORKDIR /ros2_ws
+RUN mkdir -p src config
+
+# Initialize rosdep if not already done
+RUN rosdep update || true
+
+# Copy source files first
+COPY src/ /ros2_ws/src/
+
+# Create config directory (remove problematic COPY)
+RUN mkdir -p /ros2_ws/config
+
+# Install rosdep dependencies (skip python3-requests since we have it via pip)
+RUN /bin/bash -c "source /opt/ros/humble/setup.bash && \
+    rosdep install --from-paths src --ignore-src -r -y \
+    --skip-keys='python3-requests python3-numpy' || true"
+
+# Build workspace
+RUN /bin/bash -c "source /opt/ros/humble/setup.bash && \
+    colcon build --symlink-install"
+
+# Source setup files
+RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+RUN echo "source /ros2_ws/install/setup.bash" >> ~/.bashrc
+
+# Set entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

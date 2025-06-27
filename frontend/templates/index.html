@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4-Player Codenames Robotics Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .game-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .team-panel {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .team-red {
+            border-left: 5px solid #ff6b6b;
+        }
+
+        .team-blue {
+            border-left: 5px solid #4ecdc4;
+        }
+
+        .team-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .player-card {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .player-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .player-role {
+            font-size: 0.9em;
+            color: #bdc3c7;
+            margin-bottom: 5px;
+        }
+
+        .player-status {
+            font-size: 0.8em;
+            color: #95a5a6;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-ready {
+            background: #27ae60;
+        }
+
+        .status-thinking {
+            background: #f39c12;
+            animation: pulse 1s infinite;
+        }
+
+        .status-waiting {
+            background: #95a5a6;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .game-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .status-bar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            width: 100%;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .status-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .status-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            max-width: 600px;
+            margin: 0 auto 20px;
+        }
+
+        .card {
+            aspect-ratio: 3/2;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8em;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .card.revealed {
+            cursor: default;
+            transform: none;
+        }
+
+        .card.red {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .card.blue {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .card.neutral {
+            background: #f7dc6f;
+            color: #333;
+        }
+
+        .card.assassin {
+            background: #2c3e50;
+            color: white;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+        }
+
+        .game-log {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .current-turn {
+            border: 3px solid #ffd700;
+            animation: glow 2s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .connected {
+            background: #27ae60;
+            color: white;
+        }
+
+        .disconnected {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .role-assignment-phase {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 1200px) {
+            .game-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+            
+            .game-center {
+                order: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .game-board {
+                gap: 4px;
+            }
+            
+            .card {
+                font-size: 0.7em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Connecting...</div>
+    
+    <div class="container">
+        <header>
+            <h1>🤖 4-Player Codenames Robotics</h1>
+            <p>Multi-Agent AI Tournament with ROS2</p>
+        </header>
+
+        <div class="controls">
+            <button class="btn" onclick="startGame()">🎮 Start New Game</button>
+            <button class="btn" onclick="refreshStatus()">🔄 Refresh Status</button>
+            <button class="btn" onclick="newRoles()">🎭 New Roles</button>
+            <a href="/admin" class="btn">⚙️ Admin Panel</a>
+            <a href="/players" class="btn">👥 Player Details</a>
+        </div>
+
+        <!-- Role Assignment Phase -->
+        <div class="role-assignment-phase" id="roleAssignmentPhase" style="display: none;">
+            <h2>🎭 Role Assignment in Progress...</h2>
+            <p>Waiting for players to be assigned their roles</p>
+            <div class="status-grid" style="margin-top: 20px;">
+                <div class="status-item">
+                    <div>Players Ready</div>
+                    <div class="status-value" id="playersReady">0/4</div>
+                </div>
+                <div class="status-item">
+                    <div>Roles Assigned</div>
+                    <div class="status-value" id="rolesAssigned">No</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Game Layout -->
+        <div class="game-layout" id="gameLayout">
+            <!-- Red Team -->
+            <div class="team-panel team-red">
+                <div class="team-title">🔴 Red Team</div>
+                <div class="player-card" id="redSpymaster">
+                    <div class="player-name">Waiting for assignment...</div>
+                    <div class="player-role">Spymaster</div>
+                    <div class="player-status">
+                        <span class="status-indicator status-waiting"></span>
+                        Waiting for assignment
+                    </div>
+                </div>
+                <div class="player-card" id="redOperative">
+                    <div class="player-name">Waiting for assignment...</div>
+                    <div class="player-role">Operative</div>
+                    <div class="player-status">
+                        <span class="status-indicator status-waiting"></span>
+                        Waiting for assignment
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Center -->
+            <div class="game-center">
+                <div class="status-bar">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div>Game State</div>
+                            <div class="status-value" id="gameState">Waiting...</div>
+                        </div>
+                        <div class="status-item">
+                            <div>Current Team</div>
+                            <div class="status-value" id="currentTeam">-</div>
+                        </div>
+                        <div class="status-item">
+                            <div>Red Cards</div>
+                            <div class="status-value" id="redRemaining">9</div>
+                        </div>
+                        <div class="status-item">
+                            <div>Blue Cards</div>
+                            <div class="status-value" id="blueRemaining">8</div>
+                        </div>
+                        <div class="status-item">
+                            <div>Turn</div>
+                            <div class="status-value" id="turnCounter">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-board" id="gameBoard">
+                    <!-- Cards will be dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Blue Team -->
+            <div class="team-panel team-blue">
+                <div class="team-title">🔵 Blue Team</div>
+                <div class="player-card" id="blueSpymaster">
+                    <div class="player-name">Waiting for assignment...</div>
+                    <div class="player-role">Spymaster</div>
+                    <div class="player-status">
+                        <span class="status-indicator status-waiting"></span>
+                        Waiting for assignment
+                    </div>
+                </div>
+                <div class="player-card" id="blueOperative">
+                    <div class="player-name">Waiting for assignment...</div>
+                    <div class="player-role">Operative</div>
+                    <div class="player-status">
+                        <span class="status-indicator status-waiting"></span>
+                        Waiting for assignment
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-log">
+            <h3>Game Log</h3>
+            <div id="logEntries">
+                <div class="log-entry">🎮 Waiting for 4 players to join and receive role assignments...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Socket.IO connection
+        const socket = io();
+        let currentRoleAssignments = {};
+
+        // Connection status
+        socket.on('connect', () => {
+            updateConnectionStatus(true);
+            addLogEntry('🔌 Connected to game server');
+            
+            // Reset to initial state on connect
+            currentRoleAssignments = {};
+            resetPlayerCard('redSpymaster', 'Spymaster');
+            resetPlayerCard('redOperative', 'Operative');
+            resetPlayerCard('blueSpymaster', 'Spymaster');
+            resetPlayerCard('blueOperative', 'Operative');
+            
+            refreshStatus();
+        });
+
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
+            addLogEntry('❌ Disconnected from game server');
+        });
+
+        // Game events
+        socket.on('board_update', (data) => {
+            updateBoard(data);
+            updateGameStatus(data);
+        });
+
+        socket.on('game_status', (data) => {
+            updateGameStatus(data);
+            
+            // Handle role assignment phase
+            if (data.status === 'waiting_for_players') {
+                showRoleAssignmentPhase(data);
+            } else if (data.roles_assigned) {
+                hideRoleAssignmentPhase();
+            }
+            
+            // Handle role assignments in status updates
+            if (data.type === 'role_assignments' && data.assignments) {
+                currentRoleAssignments = data.assignments;
+                updatePlayerDisplay(data.assignments);
+                addLogEntry('🎭 Role assignments updated');
+            }
+        });
+
+        socket.on('role_assignments', (assignments) => {
+            currentRoleAssignments = assignments;
+            updatePlayerDisplay(assignments);
+            addLogEntry('🎭 Player roles assigned!');
+            hideRoleAssignmentPhase();
+            
+            // Log the specific assignments
+            Object.entries(assignments).forEach(([role, playerInfo]) => {
+                if (playerInfo) {
+                    const teamColor = role.includes('red') ? '🔴' : '🔵';
+                    const roleType = role.includes('spymaster') ? 'Spymaster' : 'Operative';
+                    addLogEntry(`${teamColor} ${playerInfo.player_name} assigned as ${roleType}`);
+                }
+            });
+        });
+
+        socket.on('player_status', (data) => {
+            updatePlayerStatus(data.player_id, data.status);
+        });
+
+        socket.on('message', (data) => {
+            addLogEntry(`💬 ${data.text}`);
+        });
+
+        // UI Functions
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.textContent = '🟢 Connected';
+                status.className = 'connection-status connected';
+            } else {
+                status.textContent = '🔴 Disconnected';
+                status.className = 'connection-status disconnected';
+            }
+        }
+
+        function showRoleAssignmentPhase(data) {
+            const phase = document.getElementById('roleAssignmentPhase');
+            const layout = document.getElementById('gameLayout');
+            
+            phase.style.display = 'block';
+            layout.style.display = 'none';
+            
+            const playersReady = data.players_ready || 0;
+            const playersNeeded = data.players_needed || 4;
+            
+            document.getElementById('playersReady').textContent = `${playersReady}/${playersNeeded}`;
+            document.getElementById('rolesAssigned').textContent = data.roles_assigned ? 'Yes' : 'No';
+            
+            // Update log based on status
+            if (playersReady < playersNeeded) {
+                addLogEntry(`⏳ Waiting for ${playersNeeded - playersReady} more players to join...`);
+            } else if (!data.roles_assigned) {
+                addLogEntry('🎲 All players ready! Assigning roles randomly...');
+            }
+        }
+
+        function hideRoleAssignmentPhase() {
+            const phase = document.getElementById('roleAssignmentPhase');
+            const layout = document.getElementById('gameLayout');
+            
+            phase.style.display = 'none';
+            layout.style.display = 'grid';
+        }
+
+        function updatePlayerDisplay(assignments) {
+            // Update red team
+            if (assignments.red_spymaster) {
+                updatePlayerCard('redSpymaster', assignments.red_spymaster, 'red_spymaster');
+            } else {
+                resetPlayerCard('redSpymaster', 'Spymaster');
+            }
+            if (assignments.red_operative) {
+                updatePlayerCard('redOperative', assignments.red_operative, 'red_operative');
+            } else {
+                resetPlayerCard('redOperative', 'Operative');
+            }
+            
+            // Update blue team
+            if (assignments.blue_spymaster) {
+                updatePlayerCard('blueSpymaster', assignments.blue_spymaster, 'blue_spymaster');
+            } else {
+                resetPlayerCard('blueSpymaster', 'Spymaster');
+            }
+            if (assignments.blue_operative) {
+                updatePlayerCard('blueOperative', assignments.blue_operative, 'blue_operative');
+            } else {
+                resetPlayerCard('blueOperative', 'Operative');
+            }
+        }
+
+        function updatePlayerCard(cardId, playerInfo, role) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            const nameEl = card.querySelector('.player-name');
+            const statusEl = card.querySelector('.player-status');
+            
+            nameEl.textContent = playerInfo.player_name || playerInfo.player_id || 'Player';
+            statusEl.innerHTML = `<span class="status-indicator status-ready"></span>Ready (${playerInfo.model || 'AI'})`;
+            
+            // Add current turn highlighting
+            card.classList.remove('current-turn');
+        }
+
+        function resetPlayerCard(cardId, roleName) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            const nameEl = card.querySelector('.player-name');
+            const statusEl = card.querySelector('.player-status');
+            
+            nameEl.textContent = 'Waiting for assignment...';
+            statusEl.innerHTML = `<span class="status-indicator status-waiting"></span>Waiting for assignment`;
+            
+            card.classList.remove('current-turn');
+        }
+
+        function updatePlayerStatus(playerId, status) {
+            // Find which role this player is assigned to
+            let cardId = null;
+            
+            // Check current role assignments to find which card to update
+            for (const [role, assignment] of Object.entries(currentRoleAssignments)) {
+                if (assignment && assignment.player_id === playerId) {
+                    // Map role to card ID
+                    const roleToCardMap = {
+                        'red_spymaster': 'redSpymaster',
+                        'red_operative': 'redOperative',
+                        'blue_spymaster': 'blueSpymaster',
+                        'blue_operative': 'blueOperative'
+                    };
+                    cardId = roleToCardMap[role];
+                    break;
+                }
+            }
+            
+            if (!cardId) return; // Player not assigned to any role yet
+            
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            const statusEl = card.querySelector('.player-status');
+            const indicator = card.querySelector('.status-indicator');
+            
+            if (status.processing_action) {
+                indicator.className = 'status-indicator status-thinking';
+                statusEl.innerHTML = `<span class="status-indicator status-thinking"></span>Thinking...`;
+            } else {
+                indicator.className = 'status-indicator status-ready';
+                statusEl.innerHTML = `<span class="status-indicator status-ready"></span>Ready`;
+            }
+        }
+
+        function updateBoard(data) {
+            const board = document.getElementById('gameBoard');
+            const cards = data.cards || [];
+            
+            board.innerHTML = '';
+            
+            cards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.textContent = card.word;
+                
+                if (card.revealed) {
+                    cardElement.classList.add('revealed');
+                    cardElement.classList.add(card.type);
+                }
+                
+                board.appendChild(cardElement);
+            });
+        }
+
+        function updateGameStatus(data) {
+            document.getElementById('gameState').textContent = 
+                (data.current_state || 'unknown').replace(/_/g, ' ').toUpperCase();
+            document.getElementById('currentTeam').textContent = 
+                (data.current_team || '-').toUpperCase();
+            document.getElementById('redRemaining').textContent = data.red_remaining || 9;
+            document.getElementById('blueRemaining').textContent = data.blue_remaining || 8;
+            document.getElementById('turnCounter').textContent = data.turn || 0;
+            
+            // Highlight current team
+            highlightCurrentTurn(data.current_state, data.current_team);
+        }
+
+        function highlightCurrentTurn(state, team) {
+            // Remove all current turn highlights
+            document.querySelectorAll('.current-turn').forEach(el => {
+                el.classList.remove('current-turn');
+            });
+            
+            // Add highlight to current player
+            if (state && team) {
+                let cardId = '';
+                if (state.includes('spymaster')) {
+                    cardId = team === 'red' ? 'redSpymaster' : 'blueSpymaster';
+                } else if (state.includes('operative')) {
+                    cardId = team === 'red' ? 'redOperative' : 'blueOperative';
+                }
+                
+                if (cardId) {
+                    const card = document.getElementById(cardId);
+                    if (card) card.classList.add('current-turn');
+                }
+            }
+        }
+
+        function addLogEntry(message) {
+            const logEntries = document.getElementById('logEntries');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            
+            logEntries.insertBefore(entry, logEntries.firstChild);
+            
+            // Keep only last 20 entries
+            while (logEntries.children.length > 20) {
+                logEntries.removeChild(logEntries.lastChild);
+            }
+        }
+
+        function startGame() {
+            socket.emit('start_game');
+            addLogEntry('🎮 Starting new game...');
+        }
+
+        function refreshStatus() {
+            socket.emit('request_status');
+            addLogEntry('🔄 Refreshing status...');
+        }
+
+        function newRoles() {
+            socket.emit('request_new_roles');
+            addLogEntry('🎭 Requesting new role assignments...');
+        }
+
+        // Initialize empty board and reset player displays
+        window.onload = () => {
+            const board = document.getElementById('gameBoard');
+            for (let i = 0; i < 25; i++) {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = '...';
+                board.appendChild(card);
+            }
+            
+            // Ensure all player cards show waiting state initially
+            resetPlayerCard('redSpymaster', 'Spymaster');
+            resetPlayerCard('redOperative', 'Operative');
+            resetPlayerCard('blueSpymaster', 'Spymaster');
+            resetPlayerCard('blueOperative', 'Operative');
+        };
+    </script>
+</body>
+</html>

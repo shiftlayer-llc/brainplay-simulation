@@ -1,0 +1,45 @@
+# Frontend Dockerfile for Codenames Game
+FROM osrf/ros:humble-desktop
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DOMAIN_ID=42
+ENV PYTHONUNBUFFERED=1
+
+# Install Node.js and Python dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-colcon-common-extensions \
+    curl \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for web server
+RUN pip3 install \
+    flask \
+    flask-cors \
+    flask-socketio \
+    python-socketio \
+    eventlet \
+    requests
+
+# Create app directory
+WORKDIR /app
+
+# Copy frontend files
+COPY frontend/ /app/
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Install Node.js dependencies if package.json exists
+RUN if [ -f package.json ]; then npm install; fi
+
+# Expose ports
+EXPOSE 8080 3000
+
+# Source ROS2 setup
+RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["python3", "web_server.py"]

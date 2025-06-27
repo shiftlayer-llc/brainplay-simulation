@@ -1,0 +1,77 @@
+# Codenames Game Configuration
+game:
+  # Board settings
+  board_size: [5, 5]  # 5x5 grid
+  total_cards: 25
+  
+  # Team settings
+  red_cards: 9
+  blue_cards: 8
+  neutral_cards: 7
+  assassin_cards: 1
+  
+  # Game rules
+  max_guesses_per_turn: 10
+  enable_unlimited_guesses: false
+  
+  # Timing settings (in seconds)
+  clue_timeout: 120
+  guess_timeout: 60
+  game_timeout: 1800  # 30 minutes
+  
+  # Word list settings
+  word_list_file: "words/codenames_words.txt"
+  custom_words: []
+  
+# AI Settings
+ai:
+  # Default models
+  spymaster_model: "gpt-4"
+  finder_model: "gpt-4"
+  
+  # API settings
+  max_retries: 3
+  timeout: 30
+  
+  # Prompt engineering
+  difficulty_level: "medium"  # easy, medium, hard
+  creativity_level: 0.7  # 0.0 to 1.0
+  
+# ROS2 Settings
+ros:
+  domain_id: 42
+  node_timeout: 10.0
+  
+  # Topic names
+  topics:
+    game_state: "/codenames/game_state"
+    clue_request: "/codenames/clue_request"
+    clue_response: "/codenames/clue_response"
+    guess_request: "/codenames/guess_request"
+    guess_response: "/codenames/guess_response"
+    game_events: "/codenames/events"
+  
+  # QoS settings
+  qos:
+    reliability: "reliable"
+    durability: "transient_local"
+    
+# Frontend Settings
+frontend:
+  port: 8080
+  websocket_port: 3000
+  debug_mode: false
+  auto_refresh: true
+  
+# Isaac Sim Integration (optional)
+isaac_sim:
+  enabled: false
+  bridge_port: 5000
+  robot_namespace: "/codenames_robot"
+  simulation_speed: 1.0
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARN, ERROR
+  file_output: false
+  console_output: true

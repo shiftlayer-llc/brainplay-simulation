@@ -1,0 +1,199 @@
+version: '3.8'
+
+services:
+  # Orchestrator Node - Game Master & Role Manager
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: codenames_orchestrator
+    environment:
+      - ROS_DOMAIN_ID=42
+      - NODE_NAME=orchestrator
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PYTHONPATH=/ros2_ws/src
+    volumes:
+      - ./src:/ros2_ws/src
+    networks:
+      - codenames_network
+    command: >
+      bash -c "
+      source /opt/ros/humble/setup.bash && 
+      export PYTHONPATH=/ros2_ws/src:$$PYTHONPATH && 
+      cd /ros2_ws/src && 
+      python3 -m codenames_game.orchestrator_node"
+
+  # Player 1
+  player1:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: codenames_player1
+    environment:
+      - ROS_DOMAIN_ID=42
+      - PLAYER_ID=player_1
+      - PLAYER_NAME=Player1
+      - NODE_NAME=player1
+      - PLAYER_MODEL=${PLAYER1_MODEL:-gpt-4}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PYTHONPATH=/ros2_ws/src
+    volumes:
+      - ./src:/ros2_ws/src
+    networks:
+      - codenames_network
+    depends_on:
+      - orchestrator
+    command: >
+      bash -c "
+      source /opt/ros/humble/setup.bash && 
+      export PYTHONPATH=/ros2_ws/src:$$PYTHONPATH && 
+      cd /ros2_ws/src && 
+      python3 -m codenames_game.player_node"
+
+  # Player 2
+  player2:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: codenames_player2
+    environment:
+      - ROS_DOMAIN_ID=42
+      - PLAYER_ID=player_2
+      - PLAYER_NAME=Player2
+      - NODE_NAME=player2
+      - PLAYER_MODEL=${PLAYER2_MODEL:-gpt-4}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PYTHONPATH=/ros2_ws/src
+    volumes:
+      - ./src:/ros2_ws/src
+    networks:
+      - codenames_network
+    depends_on:
+      - orchestrator
+    command: >
+      bash -c "
+      source /opt/ros/humble/setup.bash && 
+      export PYTHONPATH=/ros2_ws/src:$$PYTHONPATH && 
+      cd /ros2_ws/src && 
+      python3 -m codenames_game.player_node"
+
+  # Player 3
+  player3:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: codenames_player3
+    environment:
+      - ROS_DOMAIN_ID=42
+      - PLAYER_ID=player_3
+      - PLAYER_NAME=Player3
+      - NODE_NAME=player3
+      - PLAYER_MODEL=${PLAYER3_MODEL:-gpt-4}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PYTHONPATH=/ros2_ws/src
+    volumes:
+      - ./src:/ros2_ws/src
+    networks:
+      - codenames_network
+    depends_on:
+      - orchestrator
+    command: >
+      bash -c "
+      source /opt/ros/humble/setup.bash && 
+      export PYTHONPATH=/ros2_ws/src:$$PYTHONPATH && 
+      cd /ros2_ws/src && 
+      python3 -m codenames_game.player_node"
+
+  # Player 4
+  player4:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: codenames_player4
+    environment:
+      - ROS_DOMAIN_ID=42
+      - PLAYER_ID=player_4
+      - PLAYER_NAME=Player4
+      - NODE_NAME=player4
+      - PLAYER_MODEL=${PLAYER4_MODEL:-gpt-4}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PYTHONPATH=/ros2_ws/src
+    volumes:
+      - ./src:/ros2_ws/src
+    networks:
+      - codenames_network
+    depends_on:
+      - orchestrator
+    command: >
+      bash -c "
+      source /opt/ros/humble/setup.bash && 
+      export PYTHONPATH=/ros2_ws/src:$$PYTHONPATH && 
+      cd /ros2_ws/src && 
+      python3 -m codenames_game.player_node"
+
+  # Isaac Bridge Node (optional)
+  isaac_bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: codenames_isaac_bridge
+    environment:
+      - ROS_DOMAIN_ID=42
+      - NODE_NAME=isaac_bridge
+      - PYTHONPATH=/ros2_ws/src
+    volumes:
+      - ./src:/ros2_ws/src
+    networks:
+      - codenames_network
+    depends_on:
+      - orchestrator
+    profiles:
+      - isaac
+    command: >
+      bash -c "
+      source /opt/ros/humble/setup.bash && 
+      export PYTHONPATH=/ros2_ws/src:$$PYTHONPATH && 
+      cd /ros2_ws/src && 
+      python3 -m codenames_game.isaac_bridge_node"
+
+  # Frontend Web Interface
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: codenames_frontend
+    environment:
+      - ROS_DOMAIN_ID=42
+      - NODE_NAME=frontend
+      - PYTHONPATH=/ros2_ws/src
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./frontend:/app
+      - ./src:/ros2_ws/src
+    networks:
+      - codenames_network
+    depends_on:
+      - orchestrator
+      - player1
+      - player2
+      - player3
+      - player4
+    command: >
+      bash -c "
+      source /opt/ros/humble/setup.bash && 
+      export PYTHONPATH=/ros2_ws/src:$$PYTHONPATH && 
+      python3 /app/web_server.py"
+
+networks:
+  codenames_network:
+    driver: bridge
+
+volumes:
+  models_cache:
+    driver: local

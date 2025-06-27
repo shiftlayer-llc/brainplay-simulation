@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4-Player Codenames - Admin Panel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .nav {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .nav a:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel h3 {
+            margin-bottom: 15px;
+            color: #3498db;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-item {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .status-label {
+            font-size: 0.9em;
+            color: #bdc3c7;
+        }
+
+        .status-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 3px;
+        }
+
+        .player-status {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .player-name {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .player-details {
+            font-size: 0.9em;
+            color: #bdc3c7;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active {
+            background: #27ae60;
+        }
+
+        .status-inactive {
+            background: #e74c3c;
+        }
+
+        .status-processing {
+            background: #f39c12;
+            animation: pulse 1s infinite;
+        }
+
+        .status-waiting {
+            background: #95a5a6;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .btn-start {
+            background: rgba(39, 174, 96, 0.3);
+            border-color: #27ae60;
+        }
+
+        .btn-start:hover {
+            background: rgba(39, 174, 96, 0.5);
+        }
+
+        .btn-roles {
+            background: rgba(155, 89, 182, 0.3);
+            border-color: #9b59b6;
+        }
+
+        .btn-roles:hover {
+            background: rgba(155, 89, 182, 0.5);
+        }
+
+        .logs {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .log-info {
+            background: rgba(52, 152, 219, 0.2);
+        }
+
+        .log-success {
+            background: rgba(39, 174, 96, 0.2);
+        }
+
+        .log-error {
+            background: rgba(231, 76, 60, 0.2);
+        }
+
+        .log-warning {
+            background: rgba(243, 156, 18, 0.2);
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .connected {
+            background: #27ae60;
+            color: white;
+        }
+
+        .disconnected {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .role-assignments {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .team-section {
+            margin-bottom: 15px;
+        }
+
+        .team-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .team-red {
+            background: rgba(255, 107, 107, 0.3);
+        }
+
+        .team-blue {
+            background: rgba(78, 205, 196, 0.3);
+        }
+
+        .role-item {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 12px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .metric-item {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2ecc71;
+        }
+
+        .metric-label {
+            font-size: 0.8em;
+            color: #bdc3c7;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Connecting...</div>
+    
+    <div class="container">
+        <header>
+            <h1>⚙️ 4-Player Codenames Admin Panel</h1>
+            <p>Monitor and control the multi-agent AI tournament system</p>
+        </header>
+
+        <div class="nav">
+            <a href="/">🎮 Game View</a>
+            <a href="/admin">⚙️ Admin Panel</a>
+            <a href="/players">👥 Player Details</a>
+            <a href="#" onclick="refreshAll()">🔄 Refresh All</a>
+        </div>
+
+        <div class="dashboard">
+            <!-- Game Status Panel -->
+            <div class="panel">
+                <h3>🎮 Game Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">Game State</div>
+                        <div class="status-value" id="gameState">Unknown</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Current Team</div>
+                        <div class="status-value" id="currentTeam">-</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Turn</div>
+                        <div class="status-value" id="turnCounter">0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Game ID</div>
+                        <div class="status-value" id="gameId">-</div>
+                    </div>
+                </div>
+                
+                <div class="role-assignments" id="roleAssignments">
+                    <div class="team-section">
+                        <div class="team-title team-red">🔴 Red Team</div>
+                        <div class="role-item">
+                            <span>Spymaster:</span>
+                            <span id="redSpymaster">Unassigned</span>
+                        </div>
+                        <div class="role-item">
+                            <span>Operative:</span>
+                            <span id="redOperative">Unassigned</span>
+                        </div>
+                    </div>
+                    <div class="team-section">
+                        <div class="team-title team-blue">🔵 Blue Team</div>
+                        <div class="role-item">
+                            <span>Spymaster:</span>
+                            <span id="blueSpymaster">Unassigned</span>
+                        </div>
+                        <div class="role-item">
+                            <span>Operative:</span>
+                            <span id="blueOperative">Unassigned</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <button class="btn btn-start" onclick="startGame()">🎮 Start New Game</button>
+                    <button class="btn btn-roles" onclick="reassignRoles()">🎭 Reassign Roles</button>
+                </div>
+            </div>
+
+            <!-- Players Status Panel -->
+            <div class="panel">
+                <h3>👥 Player Status</h3>
+                <div id="playerStatuses">
+                    <div class="player-status">
+                        <div class="player-header">
+                            <div class="player-name">
+                                <span class="status-indicator status-inactive"></span>
+                                Player1
+                            </div>
+                        </div>
+                        <div class="player-details">
+                            <div>Model: Loading...</div>
+                            <div>Role: Unassigned</div>
+                            <div>Status: Waiting</div>
+                            <div>Actions: 0</div>
+                        </div>
+                    </div>
+                    <div class="player-status">
+                        <div class="player-header">
+                            <div class="player-name">
+                                <span class="status-indicator status-inactive"></span>
+                                Player2
+                            </div>
+                        </div>
+                        <div class="player-details">
+                            <div>Model: Loading...</div>
+                            <div>Role: Unassigned</div>
+                            <div>Status: Waiting</div>
+                            <div>Actions: 0</div>
+                        </div>
+                    </div>
+                    <div class="player-status">
+                        <div class="player-header">
+                            <div class="player-name">
+                                <span class="status-indicator status-inactive"></span>
+                                Player3
+                            </div>
+                        </div>
+                        <div class="player-details">
+                            <div>Model: Loading...</div>
+                            <div>Role: Unassigned</div>
+                            <div>Status: Waiting</div>
+                            <div>Actions: 0</div>
+                        </div>
+                    </div>
+                    <div class="player-status">
+                        <div class="player-header">
+                            <div class="player-name">
+                                <span class="status-indicator status-inactive"></span>
+                                Player4
+                            </div>
+                        </div>
+                        <div class="player-details">
+                            <div>Model: Loading...</div>
+                            <div>Role: Unassigned</div>
+                            <div>Status: Waiting</div>
+                            <div>Actions: 0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Metrics -->
+            <div class="panel">
+                <h3>📊 System Metrics</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">Players Ready</div>
+                        <div class="status-value" id="playersReady">0/4</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Roles Assigned</div>
+                        <div class="status-value" id="rolesAssignedStatus">No</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Connected Clients</div>
+                        <div class="status-value" id="connectedClients">1</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">ROS Domain</div>
+                        <div class="status-value">42</div>
+                    </div>
+                </div>
+                
+                <div class="performance-metrics">
+                    <div class="metric-item">
+                        <div class="metric-value" id="totalClues">0</div>
+                        <div class="metric-label">Total Clues</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="totalGuesses">0</div>
+                        <div class="metric-label">Total Guesses</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="correctGuesses">0</div>
+                        <div class="metric-label">Correct Guesses</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="systemUptime">0:00</div>
+                        <div class="metric-label">Uptime</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROS2 Topics -->
+            <div class="panel">
+                <h3>📡 Active ROS2 Topics</h3>
+                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.8em;">
+                    <div>/game/board_state - Game board updates</div>
+                    <div>/game/clue_request - Clue requests to players</div>
+                    <div>/game/clue_response - Clue responses from players</div>
+                    <div>/game/guess_request - Guess requests to players</div>
+                    <div>/game/guess_response - Guess responses from players</div>
+                    <div>/game/role_assignments - Role assignment messages</div>
+                    <div>/game/player_ready - Player readiness announcements</div>
+                    <div>/game/status - Game status updates</div>
+                    <div>/game/player_1_status - Player 1 status</div>
+                    <div>/game/player_2_status - Player 2 status</div>
+                    <div>/game/player_3_status - Player 3 status</div>
+                    <div>/game/player_4_status - Player 4 status</div>
+                    <div>/isaac/robot_commands - Robot control (optional)</div>
+                    <div>/isaac/speech_commands - TTS commands (optional)</div>
+                </div>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button class="btn" onclick="refreshTopics()">🔄 Refresh Topics</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Logs -->
+        <div class="panel">
+            <h3>📋 System Logs</h3>
+            <div class="logs" id="systemLogs">
+                <div class="log-entry log-info">
+                    <span style="color: #7f8c8d;">[00:00:00]</span> 4-Player Admin panel loaded
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Socket.IO connection
+        const socket = io();
+        let startTime = Date.now();
+        let playerData = {};
+
+        // Connection status
+        socket.on('connect', () => {
+            updateConnectionStatus(true);
+            addLog('Connected to game server', 'success');
+            refreshAll();
+        });
+
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
+            addLog('Disconnected from game server', 'error');
+        });
+
+        // Game events
+        socket.on('board_update', (data) => {
+            updateGameStatus(data);
+            addLog('Board state updated', 'info');
+        });
+
+        socket.on('game_status', (data) => {
+            updateGameStatus(data);
+            addLog('Game status updated', 'info');
+        });
+
+        socket.on('role_assignments', (assignments) => {
+            updateRoleAssignments(assignments);
+            addLog('Role assignments updated', 'success');
+        });
+
+        socket.on('player_status', (data) => {
+            updatePlayerStatus(data.player_id, data.status);
+        });
+
+        socket.on('message', (data) => {
+            addLog(`${data.text}`, data.type);
+        });
+
+        // Update functions
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.textContent = '🟢 Connected';
+                status.className = 'connection-status connected';
+            } else {
+                status.textContent = '🔴 Disconnected';
+                status.className = 'connection-status disconnected';
+            }
+        }
+
+        function updateGameStatus(data) {
+            document.getElementById('gameState').textContent = 
+                (data.current_state || 'unknown').replace(/_/g, ' ').toUpperCase();
+            document.getElementById('currentTeam').textContent = 
+                (data.current_team || '-').toUpperCase();
+            document.getElementById('turnCounter').textContent = data.turn || 0;
+            document.getElementById('gameId').textContent = data.game_id || '-';
+            
+            if (data.players_ready !== undefined) {
+                document.getElementById('playersReady').textContent = 
+                    `${data.players_ready}/${data.players_needed || 4}`;
+            }
+            
+            if (data.roles_assigned !== undefined) {
+                document.getElementById('rolesAssignedStatus').textContent = 
+                    data.roles_assigned ? 'Yes' : 'No';
+            }
+        }
+
+        function updateRoleAssignments(assignments) {
+            document.getElementById('redSpymaster').textContent = 
+                assignments.red_spymaster?.player_name || 'Unassigned';
+            document.getElementById('redOperative').textContent = 
+                assignments.red_operative?.player_name || 'Unassigned';
+            document.getElementById('blueSpymaster').textContent = 
+                assignments.blue_spymaster?.player_name || 'Unassigned';
+            document.getElementById('blueOperative').textContent = 
+                assignments.blue_operative?.player_name || 'Unassigned';
+        }
+
+        function updatePlayerStatus(playerId, status) {
+            playerData[playerId] = status;
+            
+            const playerNames = {
+                'player_1': 'Player1',
+                'player_2': 'Player2', 
+                'player_3': 'Player3',
+                'player_4': 'Player4'
+            };
+            
+            // Update player status displays
+            const statusContainer = document.getElementById('playerStatuses');
+            let existingPanel = statusContainer.querySelector(`[data-player="${playerId}"]`);
+            
+            if (!existingPanel) {
+                const panels = statusContainer.querySelectorAll('.player-status');
+                const index = Object.keys(playerNames).indexOf(playerId);
+                if (index < panels.length) {
+                    existingPanel = panels[index];
+                    existingPanel.setAttribute('data-player', playerId);
+                }
+            }
+            
+            if (existingPanel) {
+                const nameEl = existingPanel.querySelector('.player-name');
+                const indicator = existingPanel.querySelector('.status-indicator');
+                const details = existingPanel.querySelector('.player-details');
+                
+                nameEl.innerHTML = `<span class="status-indicator ${getStatusClass(status)}"></span>${playerNames[playerId]}`;
+                
+                details.innerHTML = `
+                    <div>Model: ${status.model || 'Unknown'}</div>
+                    <div>Role: ${status.assigned_role?.replace('_', ' ') || 'Unassigned'}</div>
+                    <div>Status: ${getStatusText(status)}</div>
+                    <div>Actions: ${status.actions_completed || 0}</div>
+                `;
+            }
+        }
+
+        function getStatusClass(status) {
+            if (status.processing_action) return 'status-processing';
+            if (status.assigned_role) return 'status-active';
+            if (status.status === 'waiting_for_role') return 'status-waiting';
+            return 'status-inactive';
+        }
+
+        function getStatusText(status) {
+            if (status.processing_action) return 'Processing';
+            if (status.assigned_role) return 'Active';
+            return 'Waiting';
+        }
+
+        function addLog(message, type = 'info') {
+            const logs = document.getElementById('systemLogs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color: #7f8c8d;">[${timestamp}]</span> ${message}`;
+            
+            logs.insertBefore(entry, logs.firstChild);
+            
+            // Keep only last 50 entries
+            while (logs.children.length > 50) {
+                logs.removeChild(logs.lastChild);
+            }
+        }
+
+        function updateUptime() {
+            const uptime = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(uptime / 60);
+            const seconds = uptime % 60;
+            document.getElementById('systemUptime').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Control functions
+        function startGame() {
+            socket.emit('start_game');
+            addLog('Starting new game...', 'info');
+        }
+
+        function reassignRoles() {
+            socket.emit('request_new_roles');
+            addLog('Requesting role reassignment...', 'info');
+        }
+
+        function refreshAll() {
+            socket.emit('request_status');
+            addLog('Refreshing all status...', 'info');
+        }
+
+        function refreshTopics() {
+            addLog('Topic list refreshed', 'info');
+        }
+
+        // Start uptime counter
+        setInterval(updateUptime, 1000);
+        
+        // Initialize
+        window.onload = () => {
+            addLog('4-Player Admin panel initialized', 'success');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+# LLM Configuration for Codenames Game
+
+# OpenAI Configuration
+openai:
+  api_key: "${OPENAI_API_KEY}"
+  base_url: "https://api.openai.com/v1"
+  
+  # Model settings
+  models:
+    spymaster: "gpt-4o"
+    finder: "gpt-4o"
+    backup: "gpt-3.5-turbo"
+  
+  # Generation parameters
+  temperature: 0.7
+  max_tokens: 500
+  top_p: 1.0
+  frequency_penalty: 0.0
+  presence_penalty: 0.0
+  
+  # Retry settings
+  max_retries: 3
+  timeout: 30
+
+# Anthropic Configuration
+anthropic:
+  api_key: "${ANTHROPIC_API_KEY}"
+  
+  # Model settings
+  models:
+    spymaster: "claude-3-5-sonnet-20241022"
+    finder: "claude-3-5-sonnet-20241022"
+    backup: "claude-3-haiku-20240307"
+  
+  # Generation parameters
+  temperature: 0.7
+  max_tokens: 500
+  top_p: 1.0
+  
+  # Retry settings
+  max_retries: 3
+  timeout: 30
+
+# Model Selection and Fallback
+model_preference:
+  primary_provider: "openai"  # or "anthropic"
+  
+  # Role-specific models
+  spymaster:
+    primary: "openai.gpt-4o"
+    fallback: "anthropic.claude-3-5-sonnet-20241022"
+  
+  finder:
+    primary: "openai.gpt-4o"
+    fallback: "anthropic.claude-3-5-sonnet-20241022"
+
+# Prompt Engineering
+prompts:
+  spymaster:
+    system_prompt: |
+      You are a spymaster in the game Codenames. Your goal is to give one-word clues 
+      that help your team identify their words while avoiding the opponent's words 
+      and the assassin word.
+      
+      Rules:
+      - Give exactly one word as a clue
+      - Include a number indicating how many words relate to your clue
+      - Be creative but clear
+      - Avoid words that appear on the board
+      - Consider word associations, synonyms, categories, and themes
+    
+    clue_format: "WORD NUMBER"
+    
+  finder:
+    system_prompt: |
+      You are an operative in Codenames. Your spymaster has given you a clue and number.
+      Your goal is to identify which words on the board relate to the clue.
+      
+      Rules:
+      - Consider the clue and number carefully
+      - Think about word associations, synonyms, categories
+      - Be confident but not reckless
+      - You can guess fewer words than the number given
+      - Explain your reasoning briefly
+
+# Response Validation
+validation:
+  enable_response_filtering: true
+  blocked_words: ["assassin", "kill", "death", "bomb"]
+  min_confidence_threshold: 0.3
+  
+# Caching (optional)
+caching:
+  enabled: false
+  cache_duration: 3600  # seconds
+  max_cache_size: 1000
+
+# Debug and Logging
+debug:
+  log_prompts: true
+  log_responses: true
+  save_conversations: false
