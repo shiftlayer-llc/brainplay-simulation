@@ -13,7 +13,7 @@ if [ ! -f .env ]; then
         cp .env.template .env
         echo "✅ Created .env file from template"
         echo "📝 Please edit .env with your API keys before running again"
-        exit 1
+        
     else
         echo "❌ No .env.template found. Please create .env file manually"
         exit 1

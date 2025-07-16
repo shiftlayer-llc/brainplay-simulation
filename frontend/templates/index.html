@@ -20,7 +20,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -36,11 +36,11 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .game-layout {
+        .main-layout {
             display: grid;
             grid-template-columns: 1fr 2fr 1fr;
             gap: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .team-panel {
@@ -70,6 +70,18 @@
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .player-card.current-turn {
+            border: 3px solid #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+            animation: glow 2s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); }
+            50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.9); }
         }
 
         .player-name {
@@ -87,6 +99,8 @@
         .player-status {
             font-size: 0.8em;
             color: #95a5a6;
+            display: flex;
+            align-items: center;
         }
 
         .status-indicator {
@@ -228,31 +242,100 @@
             transform: translateY(-2px);
         }
 
-        .game-log {
-            background: rgba(0,0,0,0.3);
-            padding: 20px;
-            border-radius: 10px;
-            max-height: 300px;
-            overflow-y: auto;
+        .bottom-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
             margin-top: 20px;
         }
 
-        .log-entry {
+        .current-clue-panel {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .current-clue-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #3498db;
+            text-align: center;
+        }
+
+        .clue-content {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .clue-theme {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #f39c12;
             margin-bottom: 10px;
+        }
+
+        .clue-paragraph {
+            font-size: 1em;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .clue-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            color: #bdc3c7;
+        }
+
+        .game-log {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2ecc71;
+            text-align: center;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
             padding: 8px;
             background: rgba(255,255,255,0.1);
             border-radius: 5px;
             font-size: 0.9em;
+            border-left: 3px solid transparent;
         }
 
-        .current-turn {
-            border: 3px solid #ffd700;
-            animation: glow 2s infinite;
+        .log-entry.info {
+            border-left-color: #3498db;
         }
 
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
-            50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+        .log-entry.success {
+            border-left-color: #2ecc71;
+        }
+
+        .log-entry.warning {
+            border-left-color: #f39c12;
+        }
+
+        .log-entry.error {
+            border-left-color: #e74c3c;
+        }
+
+        .log-timestamp {
+            color: #7f8c8d;
+            font-size: 0.8em;
+            margin-right: 8px;
         }
 
         .connection-status {
@@ -263,6 +346,7 @@
             border-radius: 20px;
             font-size: 0.9em;
             font-weight: bold;
+            z-index: 1000;
         }
 
         .connected {
@@ -283,14 +367,72 @@
             margin: 20px 0;
         }
 
+        .history-tabs {
+            display: flex;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .history-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .history-tab.active {
+            background: rgba(255,255,255,0.2);
+            color: #3498db;
+        }
+
+        .history-content {
+            display: none;
+        }
+
+        .history-content.active {
+            display: block;
+        }
+
+        .clue-history-entry, .guess-history-entry {
+            background: rgba(255,255,255,0.1);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid;
+        }
+
+        .clue-history-entry {
+            border-left-color: #9b59b6;
+        }
+
+        .guess-history-entry {
+            border-left-color: #e67e22;
+        }
+
+        .team-red-color {
+            color: #ff6b6b;
+        }
+
+        .team-blue-color {
+            color: #4ecdc4;
+        }
+
         @media (max-width: 1200px) {
-            .game-layout {
+            .main-layout {
                 grid-template-columns: 1fr;
                 grid-template-rows: auto auto auto;
             }
             
             .game-center {
                 order: 1;
+            }
+            
+            .bottom-section {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -306,6 +448,10 @@
             .card {
                 font-size: 0.7em;
             }
+            
+            .bottom-section {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -315,7 +461,7 @@
     <div class="container">
         <header>
             <h1>🤖 4-Player Codenames Robotics</h1>
-            <p>Multi-Agent AI Tournament with ROS2</p>
+            <p>Multi-Agent AI Tournament with Enhanced Paragraph Clues</p>
         </header>
 
         <div class="controls">
@@ -343,7 +489,7 @@
         </div>
 
         <!-- Main Game Layout -->
-        <div class="game-layout" id="gameLayout">
+        <div class="main-layout" id="gameLayout">
             <!-- Red Team -->
             <div class="team-panel team-red">
                 <div class="team-title">🔴 Red Team</div>
@@ -419,10 +565,62 @@
             </div>
         </div>
 
-        <div class="game-log">
-            <h3>Game Log</h3>
-            <div id="logEntries">
-                <div class="log-entry">🎮 Waiting for 4 players to join and receive role assignments...</div>
+        <!-- Bottom Section: Current Clue and Game Log -->
+        <div class="bottom-section">
+            <!-- Current Clue Panel -->
+            <div class="current-clue-panel">
+                <div class="current-clue-title">💡 Current Clue</div>
+                <div class="clue-content" id="currentClueContent">
+                    <div style="text-align: center; color: #7f8c8d; font-style: italic;">
+                        No active clue
+                    </div>
+                </div>
+                
+                <!-- History Tabs -->
+                <div class="history-tabs">
+                    <div class="history-tab active" onclick="showHistory('log')">Game Log</div>
+                    <div class="history-tab" onclick="showHistory('clues')">Clues</div>
+                    <div class="history-tab" onclick="showHistory('guesses')">Guesses</div>
+                </div>
+                
+                <!-- Game Log -->
+                <div class="history-content active" id="logHistory">
+                    <div id="logEntries" style="max-height: 250px; overflow-y: auto;">
+                        <div class="log-entry info">
+                            <span class="log-timestamp">00:00:00</span>
+                            🎮 Waiting for 4 players to join...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Clue History -->
+                <div class="history-content" id="clueHistory">
+                    <div id="clueEntries" style="max-height: 250px; overflow-y: auto;">
+                        <div style="text-align: center; color: #7f8c8d; font-style: italic; padding: 20px;">
+                            No clues given yet
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Guess History -->
+                <div class="history-content" id="guessHistory">
+                    <div id="guessEntries" style="max-height: 250px; overflow-y: auto;">
+                        <div style="text-align: center; color: #7f8c8d; font-style: italic; padding: 20px;">
+                            No guesses made yet
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Log Panel -->
+            <div class="game-log">
+                <div class="log-title">🎯 Live Game Activity</div>
+                <div id="liveLogEntries">
+                    <div class="log-entry info">
+                        <span class="log-timestamp">00:00:00</span>
+                        🌐 Web interface loaded
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -431,19 +629,12 @@
         // Socket.IO connection
         const socket = io();
         let currentRoleAssignments = {};
+        let currentClueData = null;
 
         // Connection status
         socket.on('connect', () => {
             updateConnectionStatus(true);
             addLogEntry('🔌 Connected to game server');
-            
-            // Reset to initial state on connect
-            currentRoleAssignments = {};
-            resetPlayerCard('redSpymaster', 'Spymaster');
-            resetPlayerCard('redOperative', 'Operative');
-            resetPlayerCard('blueSpymaster', 'Spymaster');
-            resetPlayerCard('blueOperative', 'Operative');
-            
             refreshStatus();
         });
 
@@ -456,6 +647,11 @@
         socket.on('board_update', (data) => {
             updateBoard(data);
             updateGameStatus(data);
+            
+            // Update current clue display
+            if (data.current_clue_data) {
+                updateCurrentClueDisplay(data.current_clue_data);
+            }
         });
 
         socket.on('game_status', (data) => {
@@ -472,28 +668,38 @@
             if (data.type === 'role_assignments' && data.assignments) {
                 currentRoleAssignments = data.assignments;
                 updatePlayerDisplay(data.assignments);
-                addLogEntry('🎭 Role assignments updated');
             }
         });
 
         socket.on('role_assignments', (assignments) => {
             currentRoleAssignments = assignments;
             updatePlayerDisplay(assignments);
-            addLogEntry('🎭 Player roles assigned!');
             hideRoleAssignmentPhase();
-            
-            // Log the specific assignments
-            Object.entries(assignments).forEach(([role, playerInfo]) => {
-                if (playerInfo) {
-                    const teamColor = role.includes('red') ? '🔴' : '🔵';
-                    const roleType = role.includes('spymaster') ? 'Spymaster' : 'Operative';
-                    addLogEntry(`${teamColor} ${playerInfo.player_name} assigned as ${roleType}`);
-                }
-            });
         });
 
         socket.on('player_status', (data) => {
             updatePlayerStatus(data.player_id, data.status);
+        });
+
+        socket.on('clue_announcement', (data) => {
+            updateCurrentClueDisplay(data);
+            currentClueData = data;
+        });
+
+        socket.on('log_entry', (entry) => {
+            addLiveLogEntry(entry);
+        });
+
+        socket.on('game_log_full', (logEntries) => {
+            displayFullGameLog(logEntries);
+        });
+
+        socket.on('clue_history_update', (clueHistory) => {
+            displayClueHistory(clueHistory);
+        });
+
+        socket.on('guess_history_update', (guessHistory) => {
+            displayGuessHistory(guessHistory);
         });
 
         socket.on('message', (data) => {
@@ -512,6 +718,182 @@
             }
         }
 
+        function updateCurrentClueDisplay(clueData) {
+            const content = document.getElementById('currentClueContent');
+            
+            if (!clueData || Object.keys(clueData).length === 0) {
+                content.innerHTML = `
+                    <div style="text-align: center; color: #7f8c8d; font-style: italic;">
+                        No active clue
+                    </div>
+                `;
+                return;
+            }
+
+            if (clueData.clue_type === 'paragraph') {
+                const teamColor = clueData.team === 'red' ? '#ff6b6b' : '#4ecdc4';
+                const playerName = clueData.player_name || 'Unknown Player';
+                
+                content.innerHTML = `
+                    <div class="clue-theme" style="color: ${teamColor};">
+                        🎯 ${clueData.main_theme || 'THEME'} (${clueData.count || 1} words)
+                    </div>
+                    <div class="clue-paragraph">
+                        ${clueData.clue_paragraph || 'No clue text available'}
+                    </div>
+                    <div class="clue-meta">
+                        <span style="color: ${teamColor};">${playerName}</span>
+                        <span>${clueData.team?.toUpperCase() || 'UNKNOWN'} Team Spymaster</span>
+                    </div>
+                    ${clueData.reasoning ? `<div style="margin-top: 10px; font-size: 0.9em; color: #bdc3c7; font-style: italic;">Reasoning: ${clueData.reasoning}</div>` : ''}
+                `;
+            } else {
+                const teamColor = clueData.team === 'red' ? '#ff6b6b' : '#4ecdc4';
+                const playerName = clueData.player_name || 'Unknown Player';
+                
+                content.innerHTML = `
+                    <div class="clue-theme" style="color: ${teamColor};">
+                        🎯 ${clueData.clue || 'UNKNOWN'} (${clueData.count || 1} words)
+                    </div>
+                    <div class="clue-meta">
+                        <span style="color: ${teamColor};">${playerName}</span>
+                        <span>${clueData.team?.toUpperCase() || 'UNKNOWN'} Team Spymaster</span>
+                    </div>
+                `;
+            }
+        }
+
+        function showHistory(type) {
+            // Update tabs
+            document.querySelectorAll('.history-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show content
+            document.querySelectorAll('.history-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            if (type === 'log') {
+                document.getElementById('logHistory').classList.add('active');
+            } else if (type === 'clues') {
+                document.getElementById('clueHistory').classList.add('active');
+            } else if (type === 'guesses') {
+                document.getElementById('guessHistory').classList.add('active');
+            }
+        }
+
+        function displayFullGameLog(logEntries) {
+            const container = document.getElementById('logEntries');
+            container.innerHTML = '';
+            
+            if (logEntries.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #7f8c8d; font-style: italic; padding: 20px;">No log entries yet</div>';
+                return;
+            }
+            
+            logEntries.forEach(entry => {
+                const logDiv = document.createElement('div');
+                logDiv.className = `log-entry ${entry.type || 'info'}`;
+                logDiv.innerHTML = `
+                    <span class="log-timestamp">${entry.timestamp || '00:00:00'}</span>
+                    ${entry.message || 'Unknown message'}
+                `;
+                container.appendChild(logDiv);
+            });
+        }
+
+        function displayClueHistory(clueHistory) {
+            const container = document.getElementById('clueEntries');
+            container.innerHTML = '';
+            
+            if (clueHistory.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #7f8c8d; font-style: italic; padding: 20px;">No clues given yet</div>';
+                return;
+            }
+            
+            clueHistory.forEach(clue => {
+                const clueDiv = document.createElement('div');
+                clueDiv.className = 'clue-history-entry';
+                
+                const teamColor = clue.team === 'red' ? 'team-red-color' : 'team-blue-color';
+                
+                if (clue.clue_type === 'paragraph') {
+                    clueDiv.innerHTML = `
+                        <div style="font-weight: bold;" class="${teamColor}">
+                            ${clue.player_name} (${clue.team.toUpperCase()}) - ${clue.main_theme} (${clue.count})
+                        </div>
+                        <div style="margin: 5px 0; font-size: 0.9em;">
+                            ${clue.clue_paragraph}
+                        </div>
+                        ${clue.reasoning ? `<div style="font-size: 0.8em; color: #bdc3c7; font-style: italic;">Reasoning: ${clue.reasoning}</div>` : ''}
+                    `;
+                } else {
+                    clueDiv.innerHTML = `
+                        <div style="font-weight: bold;" class="${teamColor}">
+                            ${clue.player_name} (${clue.team.toUpperCase()}) - "${clue.clue}" for ${clue.count} words
+                        </div>
+                    `;
+                }
+                
+                container.appendChild(clueDiv);
+            });
+        }
+
+        function displayGuessHistory(guessHistory) {
+            const container = document.getElementById('guessEntries');
+            container.innerHTML = '';
+            
+            if (guessHistory.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #7f8c8d; font-style: italic; padding: 20px;">No guesses made yet</div>';
+                return;
+            }
+            
+            guessHistory.forEach(guess => {
+                const guessDiv = document.createElement('div');
+                guessDiv.className = 'guess-history-entry';
+                
+                const teamColor = guess.team === 'red' ? 'team-red-color' : 'team-blue-color';
+                const confidenceStr = guess.confidence !== undefined && guess.confidence !== 0.5 ? 
+                    ` (${Math.round(guess.confidence * 100)}% confidence)` : '';
+                
+                guessDiv.innerHTML = `
+                    <div style="font-weight: bold;" class="${teamColor}">
+                        ${guess.player_name} (${guess.team.toUpperCase()}) guesses: "${guess.word}"${confidenceStr}
+                    </div>
+                `;
+                
+                container.appendChild(guessDiv);
+            });
+        }
+
+        function addLiveLogEntry(entry) {
+            const container = document.getElementById('liveLogEntries');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log-entry ${entry.type || 'info'}`;
+            logDiv.innerHTML = `
+                <span class="log-timestamp">${entry.timestamp || '00:00:00'}</span>
+                ${entry.message || 'Unknown message'}
+            `;
+            
+            container.insertBefore(logDiv, container.firstChild);
+            
+            // Keep only last 20 entries
+            while (container.children.length > 20) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function addLogEntry(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            addLiveLogEntry({
+                timestamp: timestamp,
+                message: message,
+                type: 'info'
+            });
+        }
+
         function showRoleAssignmentPhase(data) {
             const phase = document.getElementById('roleAssignmentPhase');
             const layout = document.getElementById('gameLayout');
@@ -524,13 +906,6 @@
             
             document.getElementById('playersReady').textContent = `${playersReady}/${playersNeeded}`;
             document.getElementById('rolesAssigned').textContent = data.roles_assigned ? 'Yes' : 'No';
-            
-            // Update log based on status
-            if (playersReady < playersNeeded) {
-                addLogEntry(`⏳ Waiting for ${playersNeeded - playersReady} more players to join...`);
-            } else if (!data.roles_assigned) {
-                addLogEntry('🎲 All players ready! Assigning roles randomly...');
-            }
         }
 
         function hideRoleAssignmentPhase() {
@@ -574,8 +949,12 @@
             const nameEl = card.querySelector('.player-name');
             const statusEl = card.querySelector('.player-status');
             
-            nameEl.textContent = playerInfo.player_name || playerInfo.player_id || 'Player';
-            statusEl.innerHTML = `<span class="status-indicator status-ready"></span>Ready (${playerInfo.model || 'AI'})`;
+            const playerName = playerInfo.player_name || playerInfo.player_id || 'Unknown Player';
+            const model = playerInfo.model || 'Unknown AI';
+            const clueStyle = playerInfo.clue_style || 'single_word';
+            
+            nameEl.textContent = playerName;
+            statusEl.innerHTML = `<span class="status-indicator status-ready"></span>Ready (${model}, ${clueStyle})`;
             
             // Add current turn highlighting
             card.classList.remove('current-turn');
@@ -621,12 +1000,18 @@
             const statusEl = card.querySelector('.player-status');
             const indicator = card.querySelector('.status-indicator');
             
+            const playerName = status.player_name || status.player_id || 'Unknown Player';
+            const model = status.model || 'Unknown AI';
+            const clueStyle = status.clue_style || 'single_word';
+            
             if (status.processing_action) {
                 indicator.className = 'status-indicator status-thinking';
-                statusEl.innerHTML = `<span class="status-indicator status-thinking"></span>Thinking...`;
+                const actionType = status.assigned_role && status.assigned_role.includes('spymaster') ? 
+                    'Giving clue...' : 'Making guess...';
+                statusEl.innerHTML = `<span class="status-indicator status-thinking"></span>${actionType}`;
             } else {
                 indicator.className = 'status-indicator status-ready';
-                statusEl.innerHTML = `<span class="status-indicator status-ready"></span>Ready`;
+                statusEl.innerHTML = `<span class="status-indicator status-ready"></span>Ready (${model}, ${clueStyle})`;
             }
         }
 
@@ -685,20 +1070,6 @@
             }
         }
 
-        function addLogEntry(message) {
-            const logEntries = document.getElementById('logEntries');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
-            
-            logEntries.insertBefore(entry, logEntries.firstChild);
-            
-            // Keep only last 20 entries
-            while (logEntries.children.length > 20) {
-                logEntries.removeChild(logEntries.lastChild);
-            }
-        }
-
         function startGame() {
             socket.emit('start_game');
             addLogEntry('🎮 Starting new game...');
@@ -729,6 +1100,8 @@
             resetPlayerCard('redOperative', 'Operative');
             resetPlayerCard('blueSpymaster', 'Spymaster');
             resetPlayerCard('blueOperative', 'Operative');
+            
+            addLogEntry('🌐 Web interface initialized');
         };
     </script>
 </body>

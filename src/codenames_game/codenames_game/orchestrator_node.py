@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Orchestrator Node - Game Master for 4-Player Codenames Robotics Game
-Manages game state, assigns roles randomly, and coordinates between 4 players.
+Enhanced Orchestrator Node - Game Master for 4-Player Codenames Robotics Game
+Enhanced to support paragraph-style clues and detailed communication between players.
 """
 
 import rclpy
@@ -14,13 +14,13 @@ from typing import Dict, List, Any
 
 from .game_logic import GameBoard, GameState, CardType, create_default_board
 
-class FourPlayerOrchestratorNode(Node):
+class EnhancedFourPlayerOrchestratorNode(Node):
     def __init__(self):
         super().__init__('orchestrator_node')
         
         # Setup logging
         self.logger = self.get_logger()
-        self.logger.info("🎮 4-Player Orchestrator Node starting...")
+        self.logger.info("🎮 Enhanced 4-Player Orchestrator Node starting...")
         
         # Game state
         self.game_board: GameBoard = None
@@ -41,18 +41,24 @@ class FourPlayerOrchestratorNode(Node):
             'blue_operative': None
         }
         
+        # Enhanced clue tracking for paragraph support
+        self.current_clue_data = None  # Store full clue data including paragraphs
+        self.clue_history_detailed = []  # Enhanced clue history
+        
         # Publishers
         self.board_state_pub = self.create_publisher(String, '/game/board_state', 10)
         self.clue_request_pub = self.create_publisher(String, '/game/clue_request', 10)
         self.guess_request_pub = self.create_publisher(String, '/game/guess_request', 10)
         self.game_status_pub = self.create_publisher(String, '/game/status', 10)
         self.role_assignment_pub = self.create_publisher(String, '/game/role_assignments', 10)
+        self.clue_announcement_pub = self.create_publisher(String, '/game/clue_announcement', 10)
         
         # Subscribers
         self.clue_sub = self.create_subscription(String, '/game/clue_response', self.handle_clue_response, 10)
         self.guess_sub = self.create_subscription(String, '/game/guess_response', self.handle_guess_response, 10)
         self.start_game_sub = self.create_subscription(String, '/game/start', self.handle_start_game, 10)
         self.player_ready_sub = self.create_subscription(String, '/game/player_ready', self.handle_player_ready, 10)
+        self.pass_request_sub = self.create_subscription(String, '/game/pass_request', self.handle_pass_request, 10)
         
         # Timers
         self.status_timer = self.create_timer(5.0, self.publish_status)
@@ -62,15 +68,13 @@ class FourPlayerOrchestratorNode(Node):
         # State tracking
         self.waiting_for_clue = False
         self.waiting_for_guess = False
-        self.current_clue = None
-        self.current_clue_count = 0
         self.guesses_made = 0
         
-        self.logger.info("✅ 4-Player Orchestrator Node initialized")
+        self.logger.info("✅ Enhanced 4-Player Orchestrator Node initialized")
         self.logger.info(f"🎯 Waiting for {self.required_players} players to join...")
     
     def handle_player_ready(self, msg: String):
-        """Handle player ready announcements"""
+        """Handle player ready announcements with enhanced capabilities"""
         try:
             data = json.loads(msg.data)
             player_id = data.get('player_id')
@@ -81,13 +85,19 @@ class FourPlayerOrchestratorNode(Node):
                     'player_id': player_id,
                     'player_name': data.get('player_name', player_id),
                     'model': data.get('model', 'unknown'),
+                    'clue_style': data.get('clue_style', 'single_word'),
                     'personality': data.get('personality', {}),
+                    'capabilities': data.get('capabilities', []),
                     'ready': True,
                     'role': None,
                     'team': None
                 }
                 self.ready_players.add(player_id)
+                
+                clue_style = data.get('clue_style', 'single_word')
+                capabilities = data.get('capabilities', [])
                 self.logger.info(f"✅ Player {data.get('player_name', player_id)} joined ({len(self.ready_players)}/{self.required_players})")
+                self.logger.info(f"   Clue style: {clue_style}, Capabilities: {capabilities}")
                 
             elif data.get('status') == 'role_accepted':
                 # Player accepted role assignment
@@ -151,7 +161,9 @@ class FourPlayerOrchestratorNode(Node):
             msg.data = json.dumps(assignment_msg)
             self.role_assignment_pub.publish(msg)
             
-            self.logger.info(f"🎭 Assigned {role} to {self.players[player_id]['player_name']}")
+            player_name = self.players[player_id]['player_name']
+            clue_style = self.players[player_id].get('clue_style', 'single_word')
+            self.logger.info(f"🎭 Assigned {role} to {player_name} (clue style: {clue_style})")
         
         self.roles_assigned = True
         self.logger.info("✅ All roles assigned!")
@@ -167,7 +179,9 @@ class FourPlayerOrchestratorNode(Node):
                 assignments[role] = {
                     'player_id': player_id,
                     'player_name': self.players[player_id]['player_name'],
-                    'model': self.players[player_id]['model']
+                    'model': self.players[player_id]['model'],
+                    'clue_style': self.players[player_id].get('clue_style', 'single_word'),
+                    'capabilities': self.players[player_id].get('capabilities', [])
                 }
         
         assignment_msg = {
@@ -193,7 +207,7 @@ class FourPlayerOrchestratorNode(Node):
     
     def start_game_after_assignments(self):
         """Start game after all roles are assigned and confirmed"""
-        self.logger.info("🎯 Starting new 4-player Codenames game...")
+        self.logger.info("🎯 Starting new enhanced 4-player Codenames game...")
         self.start_new_game()
     
     def start_new_game(self):
@@ -202,8 +216,9 @@ class FourPlayerOrchestratorNode(Node):
         self.turn_counter = 0
         self.waiting_for_clue = False
         self.waiting_for_guess = False
-        self.current_clue = None
+        self.current_clue_data = None
         self.guesses_made = 0
+        self.clue_history_detailed = []
         
         # Publish initial board state
         self.publish_board_state()
@@ -212,10 +227,10 @@ class FourPlayerOrchestratorNode(Node):
         self.game_board.current_state = GameState.RED_SPYMASTER
         self.game_board.current_team = "red"
         
-        self.logger.info("✅ New 4-player game started - Red team spymaster turn")
+        self.logger.info("✅ New enhanced 4-player game started - Red team spymaster turn")
     
     def game_loop(self):
-        """Main game loop - manages turn flow with 4 players"""
+        """Main game loop - manages turn flow with enhanced clue support"""
         if self.game_board is None or not self.roles_assigned:
             return
         
@@ -224,17 +239,27 @@ class FourPlayerOrchestratorNode(Node):
         
         current_state = self.game_board.current_state
         
+        # Only request new clues when transitioning to spymaster states
         if current_state == GameState.RED_SPYMASTER and not self.waiting_for_clue:
             self.request_clue_from_player("red")
             
         elif current_state == GameState.BLUE_SPYMASTER and not self.waiting_for_clue:
             self.request_clue_from_player("blue")
             
+        # For operative states, only request guess if not already waiting and have a current clue
         elif current_state == GameState.RED_OPERATIVES and not self.waiting_for_guess:
-            self.request_guess_from_player("red")
+            if self.current_clue_data is not None:
+                self.request_guess_from_player("red")
+            else:
+                self.logger.error("❌ Red operatives state but no current clue data!")
+                self.game_board.current_state = GameState.RED_SPYMASTER
             
         elif current_state == GameState.BLUE_OPERATIVES and not self.waiting_for_guess:
-            self.request_guess_from_player("blue")
+            if self.current_clue_data is not None:
+                self.request_guess_from_player("blue")
+            else:
+                self.logger.error("❌ Blue operatives state but no current clue data!")
+                self.game_board.current_state = GameState.BLUE_SPYMASTER
     
     def request_clue_from_player(self, team: str):
         """Request a clue from the specific team's spymaster"""
@@ -245,8 +270,11 @@ class FourPlayerOrchestratorNode(Node):
             self.logger.error(f"❌ No player assigned to {role}")
             return
         
-        player_name = self.players[player_id]['player_name']
-        self.logger.info(f"🎯 Requesting clue from {player_name} ({role})")
+        player_info = self.players[player_id]
+        player_name = player_info['player_name']
+        clue_style = player_info.get('clue_style', 'single_word')
+        
+        self.logger.info(f"🎯 Requesting {clue_style} clue from {player_name} ({role})")
         
         # Get target words (team's unrevealed words)
         if team == "red":
@@ -266,7 +294,8 @@ class FourPlayerOrchestratorNode(Node):
             "player_id": player_id,
             "target_words": target_words,
             "avoid_words": avoid_words,
-            "turn": self.turn_counter
+            "turn": self.turn_counter,
+            "clue_style_requested": clue_style
         }
         
         msg = String()
@@ -274,10 +303,10 @@ class FourPlayerOrchestratorNode(Node):
         self.clue_request_pub.publish(msg)
         
         self.waiting_for_clue = True
-        self.logger.info(f"📤 Clue request sent to {player_name}")
+        self.logger.info(f"📤 {clue_style.title()} clue request sent to {player_name}")
     
     def request_guess_from_player(self, team: str):
-        """Request a guess from the specific team's operative"""
+        """Request a guess from the specific team's operative - Enhanced to pass full clue data"""
         role = f"{team}_operative"
         player_id = self.role_assignments.get(role)
         
@@ -295,12 +324,20 @@ class FourPlayerOrchestratorNode(Node):
             "game_id": self.game_id,
             "team": team,
             "player_id": player_id,
-            "clue": self.current_clue,
-            "clue_count": self.current_clue_count,
             "available_words": available_words,
             "guesses_made": self.guesses_made,
             "turn": self.turn_counter
         }
+        
+        # Add full clue data based on type
+        if self.current_clue_data:
+            guess_request.update(self.current_clue_data)
+        else:
+            # Fallback for legacy support
+            guess_request.update({
+                "clue": "UNKNOWN",
+                "clue_count": 1
+            })
         
         msg = String()
         msg.data = json.dumps(guess_request)
@@ -310,24 +347,86 @@ class FourPlayerOrchestratorNode(Node):
         self.logger.info(f"📤 Guess request sent to {player_name}")
     
     def handle_clue_response(self, msg: String):
-        """Handle clue from spymaster player"""
+        """Handle clue from spymaster player - Enhanced for paragraph clues"""
         try:
             data = json.loads(msg.data)
-            clue = data.get('clue', 'UNKNOWN')
-            count = data.get('count', 1)
             team = data.get('team', 'unknown')
             player_id = data.get('player_id')
             player_name = data.get('player_name', player_id)
+            clue_style = data.get('clue_style', 'single_word')
             
-            self.logger.info(f"📨 Received clue: '{clue}' for {count} words from {player_name} ({team} team)")
+            # Extract clue data based on type
+            if data.get('clue_type') == 'paragraph' or 'clue_paragraph' in data:
+                # Paragraph clue
+                clue_paragraph = data.get('clue_paragraph', '')
+                main_theme = data.get('main_theme', '')
+                count = data.get('count', 1)
+                reasoning = data.get('reasoning', '')
+                warnings = data.get('warnings', '')
+                
+                self.logger.info(f"📨 Received paragraph clue from {player_name} ({team} team):")
+                self.logger.info(f"   Theme: {main_theme}")
+                self.logger.info(f"   Paragraph: {clue_paragraph}")
+                self.logger.info(f"   Count: {count}")
+                self.logger.info(f"   Reasoning: {reasoning}")
+                
+                # Store full clue data
+                self.current_clue_data = {
+                    'clue_paragraph': clue_paragraph,
+                    'main_theme': main_theme,
+                    'count': count,
+                    'reasoning': reasoning,
+                    'warnings': warnings,
+                    'clue_type': 'paragraph'
+                }
+                
+                # Add to detailed history
+                clue_entry = {
+                    'team': team,
+                    'player_name': player_name,
+                    'clue_type': 'paragraph',
+                    'main_theme': main_theme,
+                    'clue_paragraph': clue_paragraph,
+                    'count': count,
+                    'reasoning': reasoning,
+                    'turn': self.turn_counter
+                }
+                
+            else:
+                # Traditional single-word clue
+                clue = data.get('clue', 'UNKNOWN')
+                count = data.get('count', 1)
+                
+                self.logger.info(f"📨 Received single-word clue: '{clue}' for {count} words from {player_name} ({team} team)")
+                
+                # Store clue data
+                self.current_clue_data = {
+                    'clue': clue,
+                    'count': count,
+                    'clue_type': 'single_word'
+                }
+                
+                # Add to detailed history
+                clue_entry = {
+                    'team': team,
+                    'player_name': player_name,
+                    'clue_type': 'single_word',
+                    'clue': clue,
+                    'count': count,
+                    'turn': self.turn_counter
+                }
             
-            # Store clue information
-            self.current_clue = clue
-            self.current_clue_count = count
+            self.clue_history_detailed.append(clue_entry)
             self.guesses_made = 0
             
-            # Add clue to game history
-            self.game_board.add_clue(clue, count, team)
+            # Add to game board history (legacy support)
+            if self.current_clue_data.get('clue_type') == 'paragraph':
+                self.game_board.add_clue(self.current_clue_data.get('main_theme', 'THEME'), count, team)
+            else:
+                self.game_board.add_clue(self.current_clue_data.get('clue', 'UNKNOWN'), count, team)
+            
+            # Announce clue to all players and observers
+            self.announce_clue(self.current_clue_data, team, player_name)
             
             # Transition to operative phase
             if team == "red":
@@ -342,8 +441,31 @@ class FourPlayerOrchestratorNode(Node):
             self.logger.error(f"❌ Error handling clue response: {e}")
             self.waiting_for_clue = False
     
+    def announce_clue(self, clue_data: Dict, team: str, player_name: str):
+        """Announce clue to all observers and Isaac Sim"""
+        announcement = {
+            'type': 'clue_announcement',
+            'game_id': self.game_id,
+            'team': team,
+            'player_name': player_name,
+            'turn': self.turn_counter
+        }
+        announcement.update(clue_data)
+        
+        msg = String()
+        msg.data = json.dumps(announcement)
+        self.clue_announcement_pub.publish(msg)
+        
+        # Log the announcement
+        if clue_data.get('clue_type') == 'paragraph':
+            self.logger.info(f"📢 Announced paragraph clue to all observers")
+        else:
+            clue = clue_data.get('clue', 'UNKNOWN')
+            count = clue_data.get('count', 1)
+            self.logger.info(f"📢 Announced clue '{clue}' ({count}) to all observers")
+    
     def handle_guess_response(self, msg: String):
-        """Handle guess from operative player"""
+        """Handle guess from operative player - Fixed to properly handle multiple guesses per clue"""
         try:
             data = json.loads(msg.data)
             word = data.get('word', '').upper()
@@ -360,7 +482,7 @@ class FourPlayerOrchestratorNode(Node):
                 self.logger.info(f"✅ Guess '{word}' was correct! Card type: {card_type.value}")
                 self.guesses_made += 1
                 
-                # Check game over conditions
+                # Check game over conditions first
                 if game_over:
                     self.logger.info("🏁 GAME OVER!")
                     if card_type == CardType.ASSASSIN:
@@ -372,22 +494,30 @@ class FourPlayerOrchestratorNode(Node):
                     
                     self.game_board.current_state = GameState.GAME_OVER
                     self.announce_game_end(winner if game_over else None, card_type == CardType.ASSASSIN)
+                    self.waiting_for_guess = False
+                    self.publish_board_state()
+                    return
                 
-                # Check if team should continue guessing
-                elif (card_type == CardType.RED and team == "red") or (card_type == CardType.BLUE and team == "blue"):
-                    # Correct team card - they can guess again (up to clue count + 1)
-                    if self.guesses_made < self.current_clue_count + 1:
-                        self.logger.info(f"👍 Correct! {team} team can guess again")
-                        # Stay in current state, wait for next guess
+                # Game continues - check if team should continue guessing
+                if (card_type == CardType.RED and team == "red") or (card_type == CardType.BLUE and team == "blue"):
+                    # Correct team card - they can guess again if within limits
+                    max_guesses = self.current_clue_data.get('count', 1) + 1 if self.current_clue_data else 2
+                    if self.guesses_made < max_guesses:
+                        self.logger.info(f"👍 Correct! {team} team can guess again ({self.guesses_made}/{max_guesses})")
+                        # Stay in current operative state - DON'T change to spymaster state
+                        self.waiting_for_guess = False  # Allow next guess
+                        self.publish_board_state()
+                        return
                     else:
-                        self.logger.info(f"📊 {team} team used all their guesses")
+                        self.logger.info(f"📊 {team} team used all their guesses ({self.guesses_made}/{max_guesses})")
                         self.end_turn()
                 else:
-                    # Wrong card type - end turn
-                    self.logger.info(f"👎 Wrong card type - ending {team} team turn")
+                    # Wrong card type (neutral, opponent, or assassin) - end turn immediately
+                    self.logger.info(f"👎 Wrong card type ({card_type.value}) - ending {team} team turn")
                     self.end_turn()
             else:
-                self.logger.info(f"❌ Guess '{word}' not found or already revealed")
+                self.logger.info(f"❌ Guess '{word}' not found or already revealed - ending turn")
+                self.end_turn()
             
             self.waiting_for_guess = False
             self.publish_board_state()
@@ -400,6 +530,12 @@ class FourPlayerOrchestratorNode(Node):
         """End current team's turn and switch to next team"""
         current_team = self.game_board.current_team
         
+        self.logger.info(f"🔄 Ending {current_team} team's turn")
+        self.logger.info(f"   Guesses made this turn: {self.guesses_made}")
+        if self.current_clue_data:
+            clue_count = self.current_clue_data.get('count', 1)
+            self.logger.info(f"   Clue was for {clue_count} words")
+        
         # Switch teams
         if current_team == "red":
             self.game_board.current_team = "blue"
@@ -409,10 +545,32 @@ class FourPlayerOrchestratorNode(Node):
             self.game_board.current_state = GameState.RED_SPYMASTER
         
         self.turn_counter += 1
-        self.current_clue = None
-        self.guesses_made = 0
+        self.current_clue_data = None  # Clear clue data for new turn
+        self.guesses_made = 0         # Reset guess counter
         
-        self.logger.info(f"🔄 Turn ended. Now {self.game_board.current_team} team's turn")
+        self.logger.info(f"🔄 Turn {self.turn_counter}: Now {self.game_board.current_team} team's turn (spymaster phase)")
+    
+    def handle_pass_request(self, msg: String):
+        """Handle when operative team decides to pass (end turn voluntarily)"""
+        try:
+            data = json.loads(msg.data)
+            team = data.get('team', 'unknown')
+            player_id = data.get('player_id')
+            player_name = data.get('player_name', player_id)
+            
+            # Verify this is the correct team's operative
+            current_team = self.game_board.current_team
+            if team != current_team:
+                self.logger.warning(f"⚠️ Pass request from {team} but it's {current_team}'s turn")
+                return
+            
+            self.logger.info(f"⏭️ {player_name} ({team} team) chose to pass - ending turn")
+            self.end_turn()
+            self.waiting_for_guess = False
+            self.publish_board_state()
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error handling pass request: {e}")
     
     def announce_game_end(self, winner_team: str, assassin_hit: bool):
         """Announce game end to all players"""
@@ -421,7 +579,8 @@ class FourPlayerOrchestratorNode(Node):
             'game_id': self.game_id,
             'winner': winner_team,
             'reason': 'assassin' if assassin_hit else 'all_cards_found',
-            'players': self.get_player_summary()
+            'players': self.get_player_summary(),
+            'clue_history': self.clue_history_detailed
         }
         
         msg = String()
@@ -437,13 +596,15 @@ class FourPlayerOrchestratorNode(Node):
                 'name': info['player_name'],
                 'role': info.get('role'),
                 'team': info.get('team'),
-                'model': info['model']
+                'model': info['model'],
+                'clue_style': info.get('clue_style', 'single_word'),
+                'capabilities': info.get('capabilities', [])
             }
             for player_id, info in self.players.items()
         }
     
     def publish_board_state(self):
-        """Publish current board state with player info"""
+        """Publish current board state with enhanced clue information"""
         if self.game_board is None:
             return
         
@@ -452,6 +613,8 @@ class FourPlayerOrchestratorNode(Node):
         board_state['turn'] = self.turn_counter
         board_state['players'] = self.get_player_summary()
         board_state['role_assignments'] = self.role_assignments
+        board_state['current_clue_data'] = self.current_clue_data
+        board_state['clue_history_detailed'] = self.clue_history_detailed
         
         msg = String()
         msg.data = json.dumps(board_state)
@@ -461,16 +624,17 @@ class FourPlayerOrchestratorNode(Node):
         """Publish periodic status updates"""
         if self.game_board is None:
             status = {
-                "node": "orchestrator",
+                "node": "enhanced_orchestrator",
                 "status": "waiting_for_players",
                 "game_id": self.game_id,
                 "players_ready": len(self.ready_players),
                 "players_needed": self.required_players,
-                "roles_assigned": self.roles_assigned
+                "roles_assigned": self.roles_assigned,
+                "enhanced_features": ["paragraph_clues", "detailed_reasoning"]
             }
         else:
             status = {
-                "node": "orchestrator", 
+                "node": "enhanced_orchestrator", 
                 "status": "game_active",
                 "game_id": self.game_id,
                 "current_state": self.game_board.current_state.value,
@@ -481,7 +645,9 @@ class FourPlayerOrchestratorNode(Node):
                 "waiting_for_clue": self.waiting_for_clue,
                 "waiting_for_guess": self.waiting_for_guess,
                 "players": self.get_player_summary(),
-                "roles_assigned": self.roles_assigned
+                "roles_assigned": self.roles_assigned,
+                "current_clue_type": self.current_clue_data.get('clue_type') if self.current_clue_data else None,
+                "enhanced_features": ["paragraph_clues", "detailed_reasoning"]
             }
         
         msg = String()
@@ -494,12 +660,12 @@ def main(args=None):
     # Setup logging
     logging.basicConfig(level=logging.INFO)
     
-    node = FourPlayerOrchestratorNode()
+    node = EnhancedFourPlayerOrchestratorNode()
     
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info("🛑 4-Player Orchestrator stopped by user")
+        node.get_logger().info("🛑 Enhanced 4-Player Orchestrator stopped by user")
     finally:
         node.destroy_node()
         rclpy.shutdown()
